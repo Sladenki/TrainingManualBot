@@ -8,6 +8,7 @@ main_menu = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="📍 Адреса", callback_data="addresses")],
     [InlineKeyboardButton(text="🤔 Внеучебное расписание", callback_data="extra_schedule")],
     [InlineKeyboardButton(text="📝 Викторина", callback_data="quiz")],
+    [InlineKeyboardButton(text="😊 Настроение", callback_data="mood")],
 ])
 
 # Меню выбора группы

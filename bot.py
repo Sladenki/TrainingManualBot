@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from datetime import datetime, timedelta
 import random
 
@@ -57,74 +57,6 @@ quiz_data = {
 }
 
 mood_data = {}  # Dictionary to store user moods
-
-# --- Вывод расписания только на сегодня ---
-@dp.message(lambda message: message.text == "/today")
-async def today_schedule(message: types.Message):
-    # Здесь для примера берём одну группу. Можно доработать выбор группы через callback.
-    group_schedule = SCHEDULE_22_IB_1_1  # или сделать по умолчанию
-    today = datetime.now().strftime("%A")  # День недели на английском
-    days_map = {
-        "Monday": "Понедельник",
-        "Tuesday": "Вторник",
-        "Wednesday": "Среда",
-        "Thursday": "Четверг",
-        "Friday": "Пятница",
-        "Saturday": "Суббота",
-        "Sunday": "Воскресенье",
-    }
-    today_rus = days_map.get(today, "Неизвестно")
-    if today_rus in group_schedule:
-        await message.answer(f"Расписание на {today_rus}:\n\n{group_schedule[today_rus]}")
-    else:
-        await message.answer(f"На {today_rus} занятий нет! 🎉")
-
-
-# --- Показывает следующую пару ---
-@dp.message(lambda message: message.text == "/nextclass")
-async def next_class(message: types.Message):
-    group_schedule = SCHEDULE_22_IB_1_1
-    now = datetime.now()
-    today = datetime.now().strftime("%A")
-    days_map = {
-        "Monday": "Понедельник",
-        "Tuesday": "Вторник",
-        "Wednesday": "Среда",
-        "Thursday": "Четверг",
-        "Friday": "Пятница",
-        "Saturday": "Суббота",
-        "Sunday": "Воскресенье",
-    }
-    today_rus = days_map.get(today, "Неизвестно")
-
-    lessons_today = group_schedule.get(today_rus)
-    if not lessons_today:
-        await message.answer(f"Сегодня ({today_rus}) занятий нет!")
-        return
-
-    # Предполагаем, что расписание содержит время начала пары
-    next_lesson = None
-    for line in lessons_today.split("\n"):
-        time_str = line.split(" ")[0]
-        try:
-            lesson_time = datetime.strptime(time_str, "%H:%M").replace(year=now.year, month=now.month, day=now.day)
-            if lesson_time > now:
-                next_lesson = line
-                break
-        except Exception:
-            continue
-
-    if next_lesson:
-        await message.answer(f"Следующая пара сегодня:\n\n{next_lesson}")
-    else:
-        await message.answer("На сегодня пары закончились! 🎉")
-
-# --- Рандомная новость ---
-@dp.message(lambda message: message.text == "/dailynews")
-async def daily_news(message: types.Message):
-    news = random.choice(news_data)
-    print(news_data)
-    await message.answer(f"📰 Новость дня:\n\n{news}")
 
 # New function for quiz system
 @dp.message(lambda message: message.text == "/quiz" or message.text == "📝 Викторина")
@@ -218,10 +150,27 @@ async def quiz_callback(callback: types.CallbackQuery):
     await callback.answer()
     await start_quiz(callback.message)
 
+@dp.callback_query(lambda callback: callback.data == "mood")
+async def mood_callback(callback: types.CallbackQuery):
+    await callback.answer()
+    await track_mood(callback.message)
+
 # Обработчик команды /start
 @dp.message(lambda message: message.text == "/start")
 async def start_cmd(message: types.Message):
+    # Создаем большую кнопку меню
+    reply_keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="📱 Открыть меню")]],
+        resize_keyboard=True,
+        one_time_keyboard=False
+    )
     await message.answer("Привет! Выберите действие:", reply_markup=main_menu)
+    await message.answer(reply_markup=reply_keyboard)
+
+# Обработчик нажатия на большую кнопку меню
+@dp.message(lambda message: message.text == "📱 Открыть меню")
+async def menu_button(message: types.Message):
+    await start_cmd(message)
 
 # Обработчик нажатия на кнопку "Расписание"
 @dp.callback_query(lambda callback: callback.data == "schedule")
@@ -267,9 +216,6 @@ async def main():
     # Добавляем кнопку в меню бота
     await bot.set_my_commands([
         BotCommand(command="start", description="Открыть меню"),
-        BotCommand(command="today", description="Показать расписание на сегодня"),
-        BotCommand(command="nextclass", description="Показать следующую пару"),
-        BotCommand(command="dailynews", description="Показать случайную новость"),
         BotCommand(command="quiz", description="Пройти викторину"),
         BotCommand(command="mood", description="Отметить настроение")
     ])
